@@ -1,5 +1,7 @@
 # Wiring
 
+![Wiring diagram: Shelly 3EM, ESP32-P4, RS485 transceiver, Growatt inverter](images/wiring-diagram.svg)
+
 ## Overview
 
 ```

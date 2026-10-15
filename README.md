@@ -20,6 +20,8 @@ Wi-Fi-related instability. See [`docs/HARDWARE.md`](docs/HARDWARE.md) for why.
 Shelly 3EM  --HTTP (polled every 1s)-->  ESP32-P4  --Modbus RTU / RS485-->  Inverter
 ```
 
+![Wiring diagram: Shelly 3EM, ESP32-P4, RS485 transceiver, Growatt inverter](docs/images/wiring-diagram.svg)
+
 The ESP32-P4:
 1. Polls the Shelly 3EM's local HTTP API (`/status`) once per second over
    Ethernet.

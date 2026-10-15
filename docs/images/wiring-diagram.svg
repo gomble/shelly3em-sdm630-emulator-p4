@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 800" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="800" fill="#ffffff"/>
+  <text x="450" y="30" text-anchor="middle" font-size="20" font-weight="bold" fill="#0f172a">Shelly 3EM → ESP32-P4 → SDM630-Emulator → Growatt Inverter</text>
+  <text x="450" y="50" text-anchor="middle" font-size="12" fill="#64748b">Signal flow and physical wiring overview</text>
+
+  <!-- Shelly 3EM -->
+  <rect x="40" y="90" width="220" height="110" rx="8" fill="#ecfeff" stroke="#06b6d4" stroke-width="2"/>
+  <text x="150" y="116" text-anchor="middle" font-size="15" font-weight="bold" fill="#0e7490">Shelly 3EM</text>
+  <text x="150" y="136" text-anchor="middle" font-size="11" fill="#155e75">Real power meter</text>
+  <text x="150" y="156" text-anchor="middle" font-size="10" fill="#334155">Wi-Fi, local HTTP API</text>
+  <text x="150" y="172" text-anchor="middle" font-size="10" fill="#334155">GET /status</text>
+  <text x="150" y="188" text-anchor="middle" font-size="9" fill="#94a3b8">your-shelly-ip (substitution: shelly_ip)</text>
+
+  <!-- LAN / Switch -->
+  <rect x="360" y="110" width="180" height="70" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="450" y="138" text-anchor="middle" font-size="13" font-weight="bold" fill="#334155">LAN / Switch</text>
+  <text x="450" y="156" text-anchor="middle" font-size="10" fill="#64748b">Wi-Fi AP + wired switch</text>
+  <text x="450" y="170" text-anchor="middle" font-size="9" fill="#94a3b8">with PoE injector/port</text>
+
+  <!-- ESP32-P4 board -->
+  <rect x="620" y="80" width="240" height="210" rx="8" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+  <text x="740" y="104" text-anchor="middle" font-size="15" font-weight="bold" fill="#047857">ESP32-P4-POE-ETH-NH</text>
+  <text x="740" y="121" text-anchor="middle" font-size="10" fill="#065f46">ESP-IDF, no Wi-Fi/Arduino</text>
+
+  <rect x="636" y="134" width="190" height="22" rx="4" fill="#d1fae5" stroke="#10b981"/>
+  <text x="731" y="149" text-anchor="middle" font-size="10" fill="#065f46">RJ45 (PoE in, from switch)</text>
+
+  <rect x="636" y="166" width="90" height="22" rx="4" fill="#ffffff" stroke="#94a3b8"/>
+  <text x="681" y="181" text-anchor="middle" font-size="9" fill="#334155">GPIO17 (TX)</text>
+
+  <rect x="736" y="166" width="90" height="22" rx="4" fill="#ffffff" stroke="#94a3b8"/>
+  <text x="781" y="181" text-anchor="middle" font-size="9" fill="#334155">GPIO16 (RX)</text>
+
+  <rect x="636" y="192" width="190" height="20" rx="4" fill="#ffffff" stroke="#94a3b8"/>
+  <text x="731" y="206" text-anchor="middle" font-size="9" fill="#334155">GND</text>
+
+  <text x="731" y="226" text-anchor="middle" font-size="8" fill="#64748b">Ethernet PHY pins (board-specific):</text>
+  <text x="731" y="238" text-anchor="middle" font-size="8" fill="#94a3b8">MDC=GPIO31  MDIO=GPIO52</text>
+  <text x="731" y="249" text-anchor="middle" font-size="8" fill="#94a3b8">PWR=GPIO51  CLK=GPIO50</text>
+  <text x="731" y="260" text-anchor="middle" font-size="8" fill="#94a3b8">— see docs/HARDWARE.md</text>
+  <text x="731" y="278" text-anchor="middle" font-size="9" fill="#065f46">Runs: p4_modbus_probe (Modbus RTU slave)</text>
+
+  <!-- RS485 module -->
+  <rect x="620" y="350" width="240" height="160" rx="8" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+  <text x="740" y="374" text-anchor="middle" font-size="15" font-weight="bold" fill="#c2410c">RS485 ↔ TTL Transceiver</text>
+  <text x="740" y="391" text-anchor="middle" font-size="10" fill="#9a3412">Auto-direction module (e.g. MAX485-based)</text>
+
+  <rect x="636" y="404" width="90" height="22" rx="4" fill="#ffffff" stroke="#94a3b8"/>
+  <text x="681" y="419" text-anchor="middle" font-size="9" fill="#334155">DI (data in)</text>
+
+  <rect x="736" y="404" width="90" height="22" rx="4" fill="#ffffff" stroke="#94a3b8"/>
+  <text x="781" y="419" text-anchor="middle" font-size="9" fill="#334155">RO (data out)</text>
+
+  <rect x="636" y="430" width="190" height="20" rx="4" fill="#ffffff" stroke="#94a3b8"/>
+  <text x="731" y="444" text-anchor="middle" font-size="9" fill="#334155">GND</text>
+
+  <rect x="636" y="458" width="90" height="22" rx="4" fill="#fed7aa" stroke="#f97316"/>
+  <text x="681" y="473" text-anchor="middle" font-size="10" fill="#9a3412">A</text>
+
+  <rect x="736" y="458" width="90" height="22" rx="4" fill="#fed7aa" stroke="#f97316"/>
+  <text x="781" y="473" text-anchor="middle" font-size="10" fill="#9a3412">B</text>
+
+  <text x="740" y="496" text-anchor="middle" font-size="8" fill="#9a3412">No DE/RE wiring needed (auto-direction)</text>
+
+  <!-- Growatt Inverter -->
+  <rect x="620" y="590" width="240" height="160" rx="8" fill="#fdf4ff" stroke="#a855f7" stroke-width="2"/>
+  <text x="740" y="614" text-anchor="middle" font-size="15" font-weight="bold" fill="#7e22ce">Growatt MIN TL-XH</text>
+  <text x="740" y="631" text-anchor="middle" font-size="10" fill="#6b21a8">Hybrid inverter — Meter COM port</text>
+
+  <rect x="636" y="644" width="90" height="22" rx="4" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="681" y="659" text-anchor="middle" font-size="10" fill="#6b21a8">A</text>
+
+  <rect x="736" y="644" width="90" height="22" rx="4" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="781" y="659" text-anchor="middle" font-size="10" fill="#6b21a8">B</text>
+
+  <rect x="636" y="672" width="190" height="24" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-dasharray="3,2"/>
+  <text x="731" y="688" text-anchor="middle" font-size="8" fill="#64748b">SYS COM (separate port)</text>
+  <text x="731" y="712" text-anchor="middle" font-size="8" fill="#64748b">used for the Growatt APX battery —</text>
+  <text x="731" y="724" text-anchor="middle" font-size="8" fill="#64748b">not wired in this project</text>
+
+  <!-- Arrows: Shelly -> Switch -> ESP (Ethernet/IP) -->
+  <line x1="260" y1="145" x2="356" y2="145" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="308" y="138" text-anchor="middle" font-size="8" fill="#334155">HTTP</text>
+
+  <line x1="540" y1="145" x2="616" y2="145" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="578" y="138" text-anchor="middle" font-size="8" fill="#334155">Ethernet</text>
+
+  <!-- ESP32 UART -> RS485 TTL side, parallel straight columns -->
+  <line x1="681" y1="188" x2="681" y2="402" stroke="#f97316" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="652" y="300" font-size="8" fill="#9a3412">TX→DI</text>
+
+  <line x1="781" y1="402" x2="781" y2="188" stroke="#f97316" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="788" y="300" font-size="8" fill="#9a3412">RO→RX</text>
+
+  <line x1="731" y1="212" x2="731" y2="428" stroke="#64748b" stroke-width="1.5" stroke-dasharray="3,2"/>
+
+  <!-- RS485 A/B -> Inverter A/B, straight parallel columns, no crossing -->
+  <line x1="681" y1="480" x2="681" y2="642" stroke="#f97316" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="652" y="560" font-size="9" fill="#9a3412">A→A</text>
+
+  <line x1="781" y1="480" x2="781" y2="642" stroke="#f97316" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="788" y="560" font-size="9" fill="#9a3412">B→B</text>
+
+  <!-- Legend -->
+  <rect x="40" y="600" width="260" height="130" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="55" y="624" font-size="11" font-weight="bold" fill="#0f172a">Legend</text>
+  <line x1="55" y1="640" x2="85" y2="640" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="92" y="644" font-size="9" fill="#334155">LAN / Ethernet (IP traffic)</text>
+  <line x1="55" y1="658" x2="85" y2="658" stroke="#f97316" stroke-width="2"/>
+  <text x="92" y="662" font-size="9" fill="#334155">TTL UART (3.3V, ESP ↔ RS485 module)</text>
+  <line x1="55" y1="676" x2="85" y2="676" stroke="#f97316" stroke-width="2"/>
+  <text x="92" y="680" font-size="9" fill="#334155">RS485 differential pair A/B (same color = same bus)</text>
+  <line x1="55" y1="694" x2="85" y2="694" stroke="#64748b" stroke-width="1.5" stroke-dasharray="3,2"/>
+  <text x="92" y="698" font-size="9" fill="#334155">Ground reference</text>
+  <text x="55" y="718" font-size="8" fill="#94a3b8">Wire straight A→A and B→B. Never cross them.</text>
+</svg>
