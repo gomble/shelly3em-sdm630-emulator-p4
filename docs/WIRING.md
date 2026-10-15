@@ -29,9 +29,15 @@ transceiver module sits between the ESP and the inverter's Modbus bus.
 
 | ESP32-P4 pin | Signal | Connects to RS485 module |
 |---|---|---|
-| GPIO17 | UART TX | `DI` / `RXD` (module's RS485→controller input side labeling varies by module) |
-| GPIO16 | UART RX | `RO` / `TXD` |
+| GPIO17 | UART TX | `DI` (data in — module's RS485→controller input side labeling varies by module) |
+| GPIO16 | UART RX | `RO` (data out) |
 | GND | Ground | `GND` |
+| 3V3 | 3.3V power | `VCC` |
+
+Most small RS485↔TTL breakout modules (including common MAX485-based
+ones) run on 3.3V logic/power just fine — but check your specific module's
+datasheet. Some modules are 5V-only; in that case you'll need a separate
+5V source instead of the ESP32-P4's 3V3 pin.
 
 | RS485 module | Connects to |
 |---|---|
