@@ -1,0 +1,463 @@
+substitutions:
+  device_name: "shelly3em-sdm630-emulator-p4"
+  friendly_name: "Shelly 3EM SDM630 Emulator (ESP32-P4)"
+  # IP address of your real Shelly 3EM power meter.
+  shelly_ip: "192.168.1.50"
+  # Modbus slave address the inverter expects for the SDM630 meter.
+  # Check your inverter's traffic (see docs/MODBUS-NOTES.md) to confirm this.
+  modbus_slave_id: "2"
+
+esphome:
+  name: ${device_name}
+  friendly_name: "${friendly_name}"
+  min_version: 2025.3.3
+  platformio_options:
+    build_flags:
+      - -DCORE_DEBUG_LEVEL=0
+      - -O3
+      - -fno-exceptions
+      - -Wno-unused-variable
+
+esp32:
+  variant: esp32p4
+  engineering_sample: false
+  flash_size: 16MB
+  cpu_frequency: 360MHz
+  framework:
+    type: esp-idf
+
+external_components:
+  - source:
+      type: local
+      path: components
+
+globals:
+  - id: modbus_send_mode
+    type: std::string
+    restore_value: yes
+    initial_value: '"Alles senden"'
+  - id: stored_shelly_ip
+    type: std::string
+    restore_value: yes
+    initial_value: '"${shelly_ip}"'
+
+  - id: last_v1
+    type: float
+    initial_value: '0.0'
+  - id: last_v2
+    type: float
+    initial_value: '0.0'
+  - id: last_v3
+    type: float
+    initial_value: '0.0'
+  - id: last_c1
+    type: float
+    initial_value: '0.0'
+  - id: last_c2
+    type: float
+    initial_value: '0.0'
+  - id: last_c3
+    type: float
+    initial_value: '0.0'
+  - id: last_p1
+    type: float
+    initial_value: '0.0'
+  - id: last_p2
+    type: float
+    initial_value: '0.0'
+  - id: last_p3
+    type: float
+    initial_value: '0.0'
+  - id: last_freq
+    type: float
+    initial_value: '0.0'
+  - id: last_total_energy
+    type: float
+    initial_value: '0.0'
+  - id: last_total_power
+    type: float
+    initial_value: '0.0'
+
+web_server:
+  port: 80
+  version: 2
+
+logger:
+  level: DEBUG
+  logs:
+    sensor: ERROR
+    homeassistant: WARN
+
+# NOTE: copy secrets.yaml.example to secrets.yaml and fill in your own values.
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+
+# Ethernet pinout for this specific board (Waveshare-style ESP32-P4-ETH /
+# "ESP32-P4-POE-ETH-NH" boards). See docs/HARDWARE.md for the full board
+# notes and why these pins differ from the generic Waveshare reference config.
+ethernet:
+  type: IP101
+  mdc_pin: GPIO31
+  mdio_pin: GPIO52
+  phy_addr: 1
+  power_pin: GPIO51
+  clk:
+    pin: GPIO50
+    mode: CLK_EXT_IN
+  domain: !secret network_domain
+
+# UART wired to an external RS485 transceiver module that sits on the
+# inverter's Modbus RTU bus. See docs/WIRING.md for the full pinout.
+uart:
+  - id: intmodbus
+    tx_pin: GPIO17
+    rx_pin: GPIO16
+    baud_rate: 9600
+    stop_bits: 1
+    data_bits: 8
+    parity: NONE
+
+# Custom Modbus RTU slave implementation (components/p4_modbus_probe).
+# The official ESPHome "modbus_server" external component used by the
+# original ESP32/Arduino version of this project does not compile on the
+# ESP32-P4 (ESP-IDF only, no Arduino.h). This component re-implements a
+# minimal read-only Modbus RTU slave (function codes 0x03/0x04) from
+# scratch, with no Arduino dependency.
+p4_modbus_probe:
+  id: modbusserver
+  uart_id: intmodbus
+  slave_address: ${modbus_slave_id}
+  register_count: 400
+  frame_timeout_ms: 5
+  max_frame_size: 256
+  stats_interval: 60s
+  request_count:
+    name: "Modbus Requests An Uns"
+  response_count:
+    name: "Modbus Antworten Gesendet"
+  crc_error_count:
+    name: "Modbus CRC Errors"
+
+text_sensor:
+  - platform: template
+    name: "Shelly IP-Adresse"
+    id: shelly_ip_display
+    icon: "mdi:ip-network"
+    entity_category: diagnostic
+    lambda: |-
+      return id(stored_shelly_ip);
+  - platform: template
+    name: "Modbus Status"
+    id: modbus_status
+    icon: "mdi:information-outline"
+
+number:
+  - platform: template
+    name: "Shelly IP Oktett 1"
+    id: shelly_ip_oct1
+    icon: "mdi:ip-network"
+    entity_category: config
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: box
+    optimistic: true
+    initial_value: 192.0
+    set_action:
+      - lambda: |-
+          std::string ip = id(stored_shelly_ip);
+          size_t pos1 = ip.find('.');
+          std::string new_ip = to_string(int(x)) + ip.substr(pos1);
+          id(stored_shelly_ip) = new_ip;
+          id(shelly_ip_display).publish_state(new_ip);
+          id(modbus_status).publish_state("IP aktualisiert - Neustart erforderlich");
+  - platform: template
+    name: "Shelly IP Oktett 2"
+    id: shelly_ip_oct2
+    icon: "mdi:ip-network"
+    entity_category: config
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: box
+    optimistic: true
+    initial_value: 168.0
+    set_action:
+      - lambda: |-
+          std::string ip = id(stored_shelly_ip);
+          size_t pos1 = ip.find('.');
+          size_t pos2 = ip.find('.', pos1+1);
+          std::string new_ip = ip.substr(0, pos1+1) + to_string(int(x)) + ip.substr(pos2);
+          id(stored_shelly_ip) = new_ip;
+          id(shelly_ip_display).publish_state(new_ip);
+          id(modbus_status).publish_state("IP aktualisiert - Neustart erforderlich");
+  - platform: template
+    name: "Shelly IP Oktett 3"
+    id: shelly_ip_oct3
+    icon: "mdi:ip-network"
+    entity_category: config
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: box
+    optimistic: true
+    initial_value: 1.0
+    set_action:
+      - lambda: |-
+          std::string ip = id(stored_shelly_ip);
+          size_t pos2 = ip.rfind('.');
+          size_t pos3 = ip.rfind('.', pos2-1);
+          std::string new_ip = ip.substr(0, pos3+1) + to_string(int(x)) + ip.substr(pos2);
+          id(stored_shelly_ip) = new_ip;
+          id(shelly_ip_display).publish_state(new_ip);
+          id(modbus_status).publish_state("IP aktualisiert - Neustart erforderlich");
+  - platform: template
+    name: "Shelly IP Oktett 4"
+    id: shelly_ip_oct4
+    icon: "mdi:ip-network"
+    entity_category: config
+    min_value: 0
+    max_value: 255
+    step: 1
+    mode: box
+    optimistic: true
+    initial_value: 50.0
+    set_action:
+      - lambda: |-
+          std::string ip = id(stored_shelly_ip);
+          size_t pos = ip.rfind('.');
+          std::string new_ip = ip.substr(0, pos+1) + to_string(int(x));
+          id(stored_shelly_ip) = new_ip;
+          id(shelly_ip_display).publish_state(new_ip);
+          id(modbus_status).publish_state("IP aktualisiert - Neustart erforderlich");
+
+switch:
+  - platform: template
+    name: "Einstellungen speichern"
+    id: save_settings
+    icon: "mdi:content-save"
+    entity_category: config
+    lambda: |-
+      return false;
+    turn_on_action:
+      - lambda: |-
+          id(modbus_status).publish_state("Einstellungen werden nach Neustart aktiv");
+          delay(250);
+          id(save_settings).turn_off();
+  - platform: factory_reset
+    name: "Werksreset"
+    entity_category: config
+    icon: "mdi:alert"
+  - platform: restart
+    name: "Restart"
+    entity_category: config
+
+select:
+  - platform: template
+    name: "Modbus Sendemodus"
+    id: modbus_send_mode_select
+    icon: "mdi:transfer"
+    options:
+      - "Alles senden"
+      - "Nur Geänderte Werte"
+    entity_category: config
+    lambda: |-
+      return id(modbus_send_mode);
+    set_action:
+      then:
+        - lambda: |-
+            id(modbus_send_mode) = x;
+            id(modbus_status).publish_state("Sendemodus geändert");
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+    entity_category: diagnostic
+
+sensor:
+  - platform: template
+    name: "Frequenz"
+    id: frequency
+    unit_of_measurement: "Hz"
+    device_class: "frequency"
+    accuracy_decimals: 1
+  - platform: template
+    name: "Gesamtenergie"
+    id: total_energy
+    unit_of_measurement: "kWh"
+    device_class: "energy"
+    accuracy_decimals: 3
+  - platform: template
+    name: "Spannung L1"
+    id: voltage_l1
+    unit_of_measurement: "V"
+    device_class: "voltage"
+    accuracy_decimals: 1
+  - platform: template
+    name: "Spannung L2"
+    id: voltage_l2
+    unit_of_measurement: "V"
+    device_class: "voltage"
+    accuracy_decimals: 1
+  - platform: template
+    name: "Spannung L3"
+    id: voltage_l3
+    unit_of_measurement: "V"
+    device_class: "voltage"
+    accuracy_decimals: 1
+  - platform: template
+    name: "Strom L1"
+    id: current_l1
+    unit_of_measurement: "A"
+    device_class: "current"
+    accuracy_decimals: 3
+  - platform: template
+    name: "Strom L2"
+    id: current_l2
+    unit_of_measurement: "A"
+    device_class: "current"
+    accuracy_decimals: 3
+  - platform: template
+    name: "Strom L3"
+    id: current_l3
+    unit_of_measurement: "A"
+    device_class: "current"
+    accuracy_decimals: 3
+  - platform: template
+    name: "Wirkleistung L1"
+    id: active_power_l1
+    unit_of_measurement: "W"
+    device_class: "power"
+    accuracy_decimals: 1
+  - platform: template
+    name: "Wirkleistung L2"
+    id: active_power_l2
+    unit_of_measurement: "W"
+    device_class: "power"
+    accuracy_decimals: 1
+  - platform: template
+    name: "Wirkleistung L3"
+    id: active_power_l3
+    unit_of_measurement: "W"
+    device_class: "power"
+    accuracy_decimals: 1
+  - platform: template
+    name: "Wirkleistung L1+L2+L3"
+    id: total_active_power
+    unit_of_measurement: "W"
+    device_class: "power"
+    accuracy_decimals: 1
+    lambda: |-
+      return id(last_total_power);
+
+http_request:
+  id: http_request_data
+  useragent: esphome/shelly-3em-p4
+  timeout: 10s
+  verify_ssl: false
+
+# Polls the real Shelly 3EM over HTTP every second and writes the values
+# into the Modbus register map that p4_modbus_probe serves to the inverter.
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          static char response_buffer[2048];
+
+          std::string host = id(stored_shelly_ip);
+          std::string request = "GET /status HTTP/1.0\r\nHost: " + host + "\r\nConnection: close\r\n\r\n";
+
+          struct sockaddr_in server_addr;
+          memset(&server_addr, 0, sizeof(server_addr));
+          server_addr.sin_family = AF_INET;
+          server_addr.sin_port = htons(80);
+          inet_pton(AF_INET, host.c_str(), &server_addr.sin_addr);
+
+          int sock = ::socket(AF_INET, SOCK_STREAM, 0);
+          if (sock < 0) return;
+
+          struct timeval tv;
+          tv.tv_sec = 5;
+          tv.tv_usec = 0;
+          setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+          setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+
+          if (::connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+            ::close(sock);
+            return;
+          }
+
+          ::send(sock, request.c_str(), request.length(), 0);
+
+          int total_read = 0;
+          int read_len;
+          while ((read_len = ::recv(sock, response_buffer + total_read, sizeof(response_buffer) - 1 - total_read, 0)) > 0) {
+            total_read += read_len;
+            if (total_read >= (int)sizeof(response_buffer) - 1) break;
+          }
+          ::close(sock);
+
+          if (total_read <= 0) return;
+          response_buffer[total_read] = 0;
+
+          char* body = strstr(response_buffer, "\r\n\r\n");
+          if (!body) return;
+          body += 4;
+
+          JsonDocument doc;
+          DeserializationError json_err = deserializeJson(doc, body);
+          if (json_err) return;
+
+          JsonArray emeters = doc["emeters"];
+          if (!emeters || emeters.size() < 3) return;
+
+          float voltages[3], currents[3], powers[3];
+          float total_energy_value = 0;
+          for (int i = 0; i < 3; i++) {
+            voltages[i] = emeters[i]["voltage"].as<float>();
+            currents[i] = emeters[i]["current"].as<float>();
+            powers[i] = emeters[i]["power"].as<float>();
+            total_energy_value += emeters[i]["total"].as<float>() / 1000.0f;
+          }
+
+          float total_power_value = doc["total_power"].as<float>();
+          id(last_total_power) = total_power_value;
+
+          id(voltage_l1).publish_state(voltages[0]);
+          id(voltage_l2).publish_state(voltages[1]);
+          id(voltage_l3).publish_state(voltages[2]);
+          id(current_l1).publish_state(currents[0]);
+          id(current_l2).publish_state(currents[1]);
+          id(current_l3).publish_state(currents[2]);
+          id(active_power_l1).publish_state(powers[0]);
+          id(active_power_l2).publish_state(powers[1]);
+          id(active_power_l3).publish_state(powers[2]);
+          id(total_energy).publish_state(total_energy_value);
+          id(frequency).publish_state(50.0f);
+          id(total_active_power).publish_state(total_power_value);
+
+          auto update_if_changed = [&](float new_val, float& last_val, uint16_t reg_addr) {
+            bool send_all = (id(modbus_send_mode) == "Alles senden");
+            if (send_all || (new_val != last_val)) {
+              last_val = new_val;
+              id(modbusserver).set_register_float(reg_addr, new_val);
+            }
+          };
+
+          update_if_changed(voltages[0], id(last_v1), 0x0000);
+          update_if_changed(voltages[1], id(last_v2), 0x0002);
+          update_if_changed(voltages[2], id(last_v3), 0x0004);
+          update_if_changed(currents[0], id(last_c1), 0x0006);
+          update_if_changed(currents[1], id(last_c2), 0x0008);
+          update_if_changed(currents[2], id(last_c3), 0x000A);
+          update_if_changed(powers[0], id(last_p1), 0x000C);
+          update_if_changed(powers[1], id(last_p2), 0x000E);
+          update_if_changed(powers[2], id(last_p3), 0x0010);
+          update_if_changed(50.0f, id(last_freq), 0x0046);
+          update_if_changed(total_energy_value, id(last_total_energy), 0x0156);
+
+          id(modbus_status).publish_state("Daten aktualisiert");
